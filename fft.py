@@ -14,18 +14,28 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
 import sqlite3
+import argparse
 
+#==============================
+# setup arguments parsing here
+#==============================
+parser = argparse.ArgumentParser()
+parser.add_argument("--sensor", type=int, help="select sensor id, 1 for 0x1d and 2 for 0x1c")
+args = parser.parse_args()
+if args.sensor is None:
+    print "Default sensor id 0x1d will be used. Use ./fft.py --sensor 2 for select second sensor. Use ./fft.py -h for help."
+    args.sensor = 1
 # init sqlite connection
 con = sqlite3.connect('/var/www/html/gyro.db')
 con.row_factory = lambda cursor, row: row[0]
 cur = con.cursor()
 """  use it for create tables"""
 #cur.execute('CREATE TABLE IF NOT EXISTS log ( dt VARCHAR(30), x REAL, y REAL, z REAL, orientation INT)')
-cur.execute('SELECT x FROM (SELECT * FROM log ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;')
+cur.execute('SELECT x FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
 x_ = cur.fetchall()
-cur.execute('SELECT y FROM (SELECT * FROM log ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;')
+cur.execute('SELECT y FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
 y_ = cur.fetchall()
-cur.execute('SELECT z FROM (SELECT * FROM log ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;')
+cur.execute('SELECT z FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
 z_ = cur.fetchall()
 con.close()
 ######## process  X 
