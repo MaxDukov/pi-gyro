@@ -6,23 +6,37 @@
 # based on mma8451.py - Python API for MMA8451 accelerometer.  Author: jatin kataria
 # maxdukov@gmail.com
 #========================================
-# v. 1.0 RC =)
-print "MMA8451 data collection script v1.0 RC"
+# v. 1.0 RC2 =)
+
+print "MMA8451 data collection script v1.0 RC2"
 
 
 import smbus
+import sys
 import os
 import time
 import datetime
 import sqlite3
+import argparse
+
+#==============================
+# setup arguments parsing here 
+#==============================
+parser = argparse.ArgumentParser()
+parser.add_argument("--sensor", type=int, help="select sensor id, 1 for 0x1d and 2 for 0x1c")
+args = parser.parse_args()
+if args.sensor is None:
+    print "Default sensor id 0x1d will be used. Use ./start.py --sensor 2 for select second sensor. Use ./start.py -h for help."
+    DEFAULT_ADDRESS = 0x1d    
 
 # init sqlite connection
 con = sqlite3.connect('/var/www/html/gyro.db')
 cur = con.cursor()
 """  use it for create tables"""
 #cur.execute('DROP TABLE log')
-cur.execute('CREATE TABLE IF NOT EXISTS log     ( dt VARCHAR(30), x INT, y INT, z INT, orientation INT)')
-cur.execute('CREATE TABLE IF NOT EXISTS archive ( dt VARCHAR(30), x INT, y INT, z INT, orientation INT, uploaded BOOLEAN default 0)')
+#cur.execute('DROP TABLE archive')
+cur.execute('CREATE TABLE IF NOT EXISTS log     ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT)')
+cur.execute('CREATE TABLE IF NOT EXISTS archive ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT, uploaded BOOLEAN default 0)')
 cur.execute('CREATE INDEX IF NOT EXISTS upld ON archive(uploaded)')
 cur.execute('DELETE FROM log')
 con.commit()
@@ -48,7 +62,14 @@ RANGE_2G = 0x00
 RANGE_4G = 0x01
 RANGE_8G = 0x02
 
-DEFAULT_ADDRESS = 0x1d # may be 0x1c for "China version" 
+#DEFAULT_ADDRESS = 0x1d # may be 0x1c for "China version" or for moddded Adafruit
+if args.sensor == 1:
+    DEFAULT_ADDRESS = 0x1d
+    print "sensor 0x1d selected, default for Adafuit"
+if args.sensor == 2:
+    DEFAULT_ADDRESS = 0x1c
+    print "sensor 0x1c selected."
+
 MMA8451_REG_OUT_X_MSB = 0x01
 MA8451_REG_SYSMOD = 0x0B
 MA8451_REG_WHOAMI = 0x0D
@@ -339,8 +360,8 @@ if __name__ == "__main__":
     print '=== data collection finished, start data saving'
     t = 0
     while t < size:
-	cur.execute('INSERT INTO log     (dt, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?)',(dt_list[t], x_list[t], y_list[t], z_list[t], o_list[t]))
-	cur.execute('INSERT INTO archive (dt, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?)',(dt_list[t], x_list[t], y_list[t], z_list[t], o_list[t]))
+	cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
+	cur.execute('INSERT INTO archive (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
 	t = t+1
     con.commit()
     con.close		
@@ -349,4 +370,6 @@ if __name__ == "__main__":
  #   passed = ((datetime.datetime.now()) - start) 
  #   print passed, " passed " , t 
     print '=== data saving finished, data visualisation starting'
-    os.system("./fft.py 1")
+    cmd = "./fft.py --sensor "+str(args.sensor)
+    print cmd
+    os.system(cmd)
