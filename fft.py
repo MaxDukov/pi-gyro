@@ -132,4 +132,4 @@ plt.plot(Xv,Vz)
 plt.xlabel('time (s)')
 
 timestr = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
-plt.savefig('/var/www/html/fft_all_'+timestr+'.png')
+plt.savefig('/var/www/html/fft_all_'+timestr+'_'+(str(args.sensor))+'.png')
