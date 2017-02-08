@@ -18,31 +18,66 @@ import time
 import datetime
 import sqlite3
 import argparse
+import sched
 
 #==============================
 # setup arguments parsing here 
 #==============================
 parser = argparse.ArgumentParser()
-parser.add_argument("--sensor", type=int, help="select sensor id, 1 for 0x1d and 2 for 0x1c")
+parser.add_argument("--sensor", type=int, help="select sensor id, 1 for 0x1d and 2 for 0x1c") 
+parser.add_argument("--norm", type=int, help="select normalization mode. 1 for normalization, 0 for standart(default)")
+parser.add_argument("--ncount", type=int, help="select normalization steps count. Default - 5 steps")
+parser.add_argument("--ntime", type=int, help="select normalization time between data collection in minutes. Default - 1m.")
 args = parser.parse_args()
 if args.sensor is None:
-    print "Default sensor id 0x1d will be used. Use ./start.py --sensor 2 for select second sensor. Use ./start.py -h for help."
-    DEFAULT_ADDRESS = 0x1d    
+	print "Default sensor id 0x1d will be used. Use ./start.py --sensor 2 for select second sensor. Use ./start.py -h for help."
+	DEFAULT_ADDRESS = 0x1d    
+if (args.norm is None or args.norm == 0):
+	print "Default mode, no normalization"
+	norm = 0
+if args.norm == 1:
+        print "Normalization mode"
+        norm = 1
+if (args.ncount is None and norm == 1):
+        print "Default mode normalization count (5)."
+        norm_count = 5
+if (args.ncount and norm == 1):
+        print "Normalization count="+str(args.ncount)
+        norm_count = args.ncount 
+if (args.ntime is None and norm == 1):
+        print "Default normalization time (1 min)."
+        norm_time = 1
+if (args.ntime and norm == 1):
+        print "Normalization time="+str(args.ntime)
+        norm_time = args.ntime
 
+#============================================
+# Scheduler init
+#============================================
+scheduler = sched.scheduler(time.time, time.sleep)
+
+#==============================
+# SQLite setup
+#==============================
 # init sqlite connection
 con = sqlite3.connect('/var/www/html/gyro.db')
 cur = con.cursor()
-"""  use it for create tables"""
-#cur.execute('DROP TABLE log')
-#cur.execute('DROP TABLE archive')
-cur.execute('CREATE TABLE IF NOT EXISTS log     ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT)')
-cur.execute('CREATE TABLE IF NOT EXISTS archive ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT, uploaded BOOLEAN default 0)')
+
+#============================================
+# check and create tables, if it's not exists
+#============================================
+# cur.execute('DROP TABLE log') 
+# cur.execute('DROP TABLE archive')
+cur.execute('CREATE TABLE IF NOT EXISTS log     ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT, norm BOOLEAN default 0)')
+cur.execute('CREATE TABLE IF NOT EXISTS archive ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT, norm BOOLEAN default 0, uploaded BOOLEAN default 0)')
+cur.execute('CREATE TABLE IF NOT EXISTS norm    ( count INT, id INT, x INT, y INT, z INT, orientation INT)')
 cur.execute('CREATE INDEX IF NOT EXISTS upld ON archive(uploaded)')
 cur.execute('DELETE FROM log')
 con.commit()
-""""""
 
-
+#==============================
+# MMA8451 setup
+#==============================
 HIGH_RES_PRECISION = 14
 LOW_RES_PRECISION = 8
 DEACTIVATE = 0
@@ -306,7 +341,7 @@ class MMA8451(object):
             Returns: {x:X, y:Y, z:Z} a dict representing the values in
             m/s2.
         """
-
+	
         self._validate_axes_readings()
         read_bytes = self.read_i2c_block_data(MMA8451_REG_OUT_X_MSB, 6)
         if self.high_res_mode is not None:
@@ -326,50 +361,74 @@ class MMA8451(object):
         y -= signed_max if y > max_val else 0
         z -= signed_max if z > max_val else 0
 
-#        x = round((float(x)) / RANGE_DIVIDER[self.sensor_range], 3)
-#        y = round((float(y)) / RANGE_DIVIDER[self.sensor_range], 3)
-#        z = round((float(z)) / RANGE_DIVIDER[self.sensor_range], 3)
+        x = round((float(x)) / RANGE_DIVIDER[self.sensor_range], 3)
+        y = round((float(y)) / RANGE_DIVIDER[self.sensor_range], 3)
+        z = round((float(z)) / RANGE_DIVIDER[self.sensor_range], 3)
 
         return {"x": x, "y": y, "z": z}
+    def get_data_bin(self,size, norm, last):
+	dt_list = [0]*size
+	x_list = [0]*size
+	y_list = [0]*size
+	z_list = [0]*size
+	o_list = [0]*size
+	t = 0
+	start = datetime.datetime.now()
+	run = datetime.datetime.now()
+	print '=== data collection start. Start time='+str(run)
+	while t < size:
+        	if (run + datetime.timedelta(0,0,1230))  <= datetime.datetime.now():
+                	run = datetime.datetime.now()
+	                axes = mma8451.get_axes_measurement()
+	                dt_list[t] = run
+        	        x_list[t] =  (axes['x'])
+                	y_list[t] =  (axes['y'])
+	                z_list[t] =  (axes['z'])
+        	        o_list[t] =  (mma8451.get_orientation())
+                	t = t+1
+	if norm == 0:
+	        print '=== data collection finished, start data saving'
+        	t = 0
+	        while t < size:
+        	        cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
+                	cur.execute('INSERT INTO archive (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
+                	t = t+1
+        	con.commit()
+	if norm == 1 and last == 0:
+        	print '=== norm data collection finished, start data saving'
+        	t = 0
+        	while t < size:
+                	cur.execute('INSERT INTO norm     (count, id, x, y, z, orientation ) VALUES( ?, ?, ?, ?, ?, ?)',( t, args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
+                	t = t+1
+        	con.commit()
+	if  norm == 1 and last == 1:
+        	print '=== data normalization '
+         	cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation, norm) SELECT datetime(\'now\'), id, avg(x), avg(y), avg(z), min(orientation), 1 FROM norm GROUP BY count')
+         	cur.execute('DELETE FROM norm')
+         	con.commit()
 
+	return ()
 
 if __name__ == "__main__":
     mma8451 = MMA8451()
-    size = 2400 
-    dt_list = [0]*size
-    x_list = [0]*size
-    y_list = [0]*size
-    z_list = [0]*size
-    o_list = [0]*size
-    t = 0
-    start = datetime.datetime.now()
-    run = datetime.datetime.now()
-# main loop. let's keep data in table in memory and save it to disk later
-    print '=== data collection start.'
-    while t < size:
-        if (run + datetime.timedelta(0,0,1230))  <= datetime.datetime.now():
-		run = datetime.datetime.now()		
-		axes = mma8451.get_axes_measurement()
-		dt_list[t] = run
-		x_list[t] =  (axes['x'])
-		y_list[t] =  (axes['y'])
-		z_list[t] =  (axes['z'])
-		o_list[t] =  (mma8451.get_orientation())
-		t = t+1
-# now let's save data into db    
-    print '=== data collection finished, start data saving'
-    t = 0
-    while t < size:
-	cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
-	cur.execute('INSERT INTO archive (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
-	t = t+1
-    con.commit()
-    con.close		
- #   print datetime.datetime.now()
- #   print start
- #   passed = ((datetime.datetime.now()) - start) 
- #   print passed, " passed " , t 
+#========================
+# run with normalization 
+#========================
+    if  norm == 1:
+	     while norm_count > 0:
+             		scheduler.enter(norm_time*norm_count, 1, mma8451.get_data_bin, (2400,1,0))
+        		norm_count = norm_count - 1
+	     scheduler.run()
+	     mma8451.get_data_bin(2400,1,1) # calc normalized value
+	
+#==========================
+# run witout normalisation 
+#==========================
+    if  norm == 0:
+	    mma8451.get_data_bin(2400,0,0)
+
+
+    con.close
     print '=== data saving finished, data visualisation starting'
-    cmd = "./fft.py --sensor "+str(args.sensor)
-    print cmd
+    cmd = "./fft.py --sensor "+str(args.sensor)+" --norm "+str(norm)
     os.system(cmd)
