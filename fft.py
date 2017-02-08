@@ -5,8 +5,8 @@
 # Created by Max Dukov
 # maxdukov@gmail.com
 #========================================
-# v. 1.0 RC =)
-print "FFT vis script v1.0 RC"
+# v. 1.0 RC3 =)
+print "FFT vis script v1.0 RC3"
 import numpy as np
 from numpy import array, arange, abs as np_abs
 import matplotlib
@@ -21,16 +21,23 @@ import argparse
 #==============================
 parser = argparse.ArgumentParser()
 parser.add_argument("--sensor", type=int, help="select sensor id, 1 for 0x1d and 2 for 0x1c")
+parser.add_argument("--norm", type=int, help="select normalization mode. 1 for normalization, 0 for standart(default)")
 args = parser.parse_args()
 if args.sensor is None:
     print "Default sensor id 0x1d will be used. Use ./fft.py --sensor 2 for select second sensor. Use ./fft.py -h for help."
     args.sensor = 1
+if (args.norm is None or args.norm == 0):
+        print "Default mode, no normalization"
+        norm = 0
+if args.norm == 1:
+        print "Normalization mode"
+        norm = 1
+#=========================
 # init sqlite connection
+#=========================
 con = sqlite3.connect('/var/www/html/gyro.db')
 con.row_factory = lambda cursor, row: row[0]
 cur = con.cursor()
-"""  use it for create tables"""
-#cur.execute('CREATE TABLE IF NOT EXISTS log ( dt VARCHAR(30), x REAL, y REAL, z REAL, orientation INT)')
 cur.execute('SELECT x FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
 x_ = cur.fetchall()
 cur.execute('SELECT y FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
@@ -57,7 +64,7 @@ fig_size[1] = 22
 plt.rcParams["figure.figsize"] = fig_size
 
 ### plot freq for X
-plt.subplot(6, 1, 1)
+plt.subplot(3, 2, 1)
 plt.grid(True)
 plt.plot(X,Yx)
 plt.xlabel('Freq (Hz)')
@@ -68,7 +75,7 @@ for i in range(0,400):
 end = len(Vx)
 X = np.asarray(np.linspace(0, 0.5, end, endpoint=True))
 ### plot Velocity for X
-plt.subplot(6, 1, 2)
+plt.subplot(3, 2, 2)
 plt.grid(True)
 plt.plot(X,Vx)
 plt.xlabel('time (s)')
@@ -86,7 +93,7 @@ freq_y = Xy[id[0]] #
 print "freq=", freq_y
 print "=============="
 ### plot freq for Y
-plt.subplot(6, 1, 3)
+plt.subplot(3, 2, 3)
 plt.grid(True)
 plt.plot(Xy,Yy)
 plt.xlabel('Freq (Hz)')
@@ -97,7 +104,7 @@ for i in range(0,400):
 end = len(Vy)
 Xv = np.asarray(np.linspace(0, 0.5, end, endpoint=True))
 ### plot Velocity for Y
-plt.subplot(6, 1, 4)
+plt.subplot(3, 2, 4)
 plt.grid(True)
 plt.plot(Xv,Vy)
 plt.xlabel('time (s)')
@@ -115,7 +122,7 @@ print "id=", id[0]
 freq_z = Xz[id[0]] #
 print "freq=", freq_z
 ### plot freq for Z
-plt.subplot(6, 1, 5)
+plt.subplot(3, 2, 5)
 plt.grid(True)
 plt.plot(Xz,Yz)
 plt.xlabel('Freq (Hz)')
@@ -126,10 +133,13 @@ for i in range(0,400):
 end = len(Vz)
 Xv = np.asarray(np.linspace(0, 0.5, end, endpoint=True))
 ### plot Velocity for Z
-plt.subplot(6, 1, 6)
+plt.subplot(3, 2, 6)
 plt.grid(True)
 plt.plot(Xv,Vz)
 plt.xlabel('time (s)')
 
 timestr = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
-plt.savefig('/var/www/html/fft_all_'+timestr+'_'+(str(args.sensor))+'.png')
+if norm == 0:
+	plt.savefig('/var/www/html/fft_all_'+timestr+'_'+(str(args.sensor))+'.png')
+if norm == 1:
+	plt.savefig('/var/www/html/fft_all_norm_'+timestr+'_'+(str(args.sensor))+'.png')
