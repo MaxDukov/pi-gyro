@@ -441,7 +441,7 @@ if __name__ == "__main__":
     	    os.system(cmd)
 
     if  seq == 1:
-	    DEFAULT_ADDRESS = 0x1c #!!!!
+	    DEFAULT_ADDRESS = 0x1d
 	    mma8451 = MMA8451(DEFAULT_ADDRESS)
 	    mma8451.get_data_bin(2400,0,0)
 	    mma8451 = MMA8451(DEFAULT_ADDRESS)
