@@ -46,7 +46,7 @@ cur.execute('SELECT z FROM log WHERE id=? ORDER BY dt ASC;', (str(args.sensor)))
 z_ = cur.fetchall()
 con.close()
 print "==================================="
-print "=> Processing data for sensor id"+str(args.sensor)
+print "=> Processing data for sensor id#"+str(args.sensor)
 print "==================================="
 ######## process  X 
 # freq graph
@@ -66,6 +66,8 @@ fig_size[0] = 16
 fig_size[1] = 22
 plt.rcParams["figure.figsize"] = fig_size
 
+fig = plt.figure()
+fig.suptitle('FFT and velocity graphs for sensor '+str(args.sensor), fontsize=14, fontweight='bold')
 ### plot freq for X
 plt.subplot(3, 2, 1)
 plt.grid(True)
