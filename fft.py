@@ -5,8 +5,8 @@
 # Created by Max Dukov
 # maxdukov@gmail.com
 #========================================
-# v. 1.0 RC3 =)
-print "FFT vis script v1.0 RC3"
+# v. 1.0.210317 =)
+print "FFT vis script v1.0.210317"
 import numpy as np
 from numpy import array, arange, abs as np_abs
 import matplotlib
@@ -20,31 +20,34 @@ import argparse
 # setup arguments parsing here
 #==============================
 parser = argparse.ArgumentParser()
-parser.add_argument("--sensor", type=int, help="select sensor id, 1 for 0x1d and 2 for 0x1c")
-parser.add_argument("--norm", type=int, help="select normalization mode. 1 for normalization, 0 for standart(default)")
+parser.add_argument("--sensor", type=int, help="sensor id")
+#parser.add_argument("--norm", type=int, help="select normalization mode. 1 for normalization, 0 for standart(default)")
 args = parser.parse_args()
 if args.sensor is None:
     print "Default sensor id 0x1d will be used. Use ./fft.py --sensor 2 for select second sensor. Use ./fft.py -h for help."
     args.sensor = 1
-if (args.norm is None or args.norm == 0):
-        print "Default mode, no normalization"
-        norm = 0
-if args.norm == 1:
-        print "Normalization mode"
-        norm = 1
+#if (args.norm is None or args.norm == 0):
+#        print "Default mode, no normalization"
+#        norm = 0
+#if args.norm == 1:
+#        print "Normalization mode"
+#        norm = 1
 #=========================
 # init sqlite connection
 #=========================
 con = sqlite3.connect('/var/www/html/gyro.db')
 con.row_factory = lambda cursor, row: row[0]
 cur = con.cursor()
-cur.execute('SELECT x FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
+cur.execute('SELECT x FROM log WHERE id=? ORDER BY dt ASC;', (str(args.sensor)))
 x_ = cur.fetchall()
-cur.execute('SELECT y FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
+cur.execute('SELECT y FROM log WHERE id=? ORDER BY dt ASC;', (str(args.sensor)))
 y_ = cur.fetchall()
-cur.execute('SELECT z FROM (SELECT * FROM log WHERE id=? ORDER BY dt DESC LIMIT 2400) ORDER BY dt ASC;', (str(args.sensor)))
+cur.execute('SELECT z FROM log WHERE id=? ORDER BY dt ASC;', (str(args.sensor)))
 z_ = cur.fetchall()
 con.close()
+print "==================================="
+print "=> Processing data for sensor id"+str(args.sensor)
+print "==================================="
 ######## process  X 
 # freq graph
 Yx = np_abs(np.fft.rfft(x_))
@@ -139,7 +142,7 @@ plt.plot(Xv,Vz)
 plt.xlabel('time (s)')
 
 timestr = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
-if norm == 0:
-	plt.savefig('/var/www/html/fft_all_'+timestr+'_'+(str(args.sensor))+'.png')
-if norm == 1:
-	plt.savefig('/var/www/html/fft_all_norm_'+timestr+'_'+(str(args.sensor))+'.png')
+#if norm == 0:
+plt.savefig('/var/www/html/fft_all_'+timestr+'_'+(str(args.sensor))+'.png')
+#if norm == 1:
+#	plt.savefig('/var/www/html/fft_all_norm_'+timestr+'_'+(str(args.sensor))+'.png')

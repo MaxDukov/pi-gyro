@@ -6,9 +6,9 @@
 # based on mma8451.py - Python API for MMA8451 accelerometer.  Author: jatin kataria
 # maxdukov@gmail.com
 #========================================
-# v. 1.0 RC2 =)
+# v. 1.0.210317 =)
 
-print "MMA8451 data collection script v1.0 RC2"
+print "MMA8451 data collection script v1.0.210317"
 
 
 import smbus
@@ -25,36 +25,45 @@ import sched
 #==============================
 parser = argparse.ArgumentParser()
 parser.add_argument("--sensor", type=int, help="select sensor id, 1 for 0x1d and 2 for 0x1c") 
-parser.add_argument("--norm", type=int, help="select normalization mode. 1 for normalization, 0 for standart(default)")
-parser.add_argument("--ncount", type=int, help="select normalization steps count. Default - 5 steps")
-parser.add_argument("--ntime", type=int, help="select normalization time between data collection in minutes. Default - 1m.")
+parser.add_argument("--seq", type=int, help="select sequential mode. 1 for sequential start, 0 for single sensor(default)")
+#parser.add_argument("--norm", type=int, help="select normalization mode. 1 for normalization, 0 for standart(default)")
+#parser.add_argument("--ncount", type=int, help="select normalization steps count. Default - 5 steps")
+#parser.add_argument("--ntime", type=int, help="select normalization time between data collection in minutes. Default - 1m.")
 args = parser.parse_args()
-if args.sensor is None:
+if args.sensor is None and (args.seq is None or args.seq == 0):
 	print "Default sensor id 0x1d will be used. Use ./start.py --sensor 2 for select second sensor. Use ./start.py -h for help."
 	DEFAULT_ADDRESS = 0x1d    
-if (args.norm is None or args.norm == 0):
-	print "Default mode, no normalization"
-	norm = 0
-if args.norm == 1:
-        print "Normalization mode"
-        norm = 1
-if (args.ncount is None and norm == 1):
-        print "Default mode normalization count (5)."
-        norm_count = 5
-if (args.ncount and norm == 1):
-        print "Normalization count="+str(args.ncount)
-        norm_count = args.ncount 
-if (args.ntime is None and norm == 1):
-        print "Default normalization time (1 min)."
-        norm_time = 1
-if (args.ntime and norm == 1):
-        print "Normalization time="+str(args.ntime)
-        norm_time = args.ntime
+#if (args.norm is None or args.norm == 0):
+#	print "Default mode, no normalization"
+#	norm = 0
+#if args.norm == 1:
+#        print "Normalization mode"
+#        norm = 1
+
+if (args.seq is None or args.seq == 0):
+	print "Default mode, single sensor run"
+        seq = 0
+if args.seq == 1:
+        print "Sequential mode"
+        seq = 1
+
+#if (args.ncount is None and norm == 1):
+#        print "Default mode normalization count (5)."
+#        norm_count = 5
+#if (args.ncount and norm == 1):
+#        print "Normalization count="+str(args.ncount)
+#        norm_count = args.ncount 
+#if (args.ntime is None and norm == 1):
+#        print "Default normalization time (1 min)."
+#        norm_time = 1
+#if (args.ntime and norm == 1):
+#        print "Normalization time="+str(args.ntime)
+#        norm_time = args.ntime
 
 #============================================
 # Scheduler init
 #============================================
-scheduler = sched.scheduler(time.time, time.sleep)
+#scheduler = sched.scheduler(time.time, time.sleep)
 
 #==============================
 # SQLite setup
@@ -70,7 +79,7 @@ cur = con.cursor()
 # cur.execute('DROP TABLE archive')
 cur.execute('CREATE TABLE IF NOT EXISTS log     ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT, norm BOOLEAN default 0)')
 cur.execute('CREATE TABLE IF NOT EXISTS archive ( dt VARCHAR(30), id INT, x INT, y INT, z INT, orientation INT, norm BOOLEAN default 0, uploaded BOOLEAN default 0)')
-cur.execute('CREATE TABLE IF NOT EXISTS norm    ( count INT, id INT, x INT, y INT, z INT, orientation INT)')
+#cur.execute('CREATE TABLE IF NOT EXISTS norm    ( count INT, id INT, x INT, y INT, z INT, orientation INT)')
 cur.execute('CREATE INDEX IF NOT EXISTS upld ON archive(uploaded)')
 cur.execute('DELETE FROM log')
 con.commit()
@@ -163,7 +172,7 @@ BOARD_CPUINFO = '/proc/cpuinfo'
 
 class MMA8451(object):
 
-    def __init__(self, address=DEFAULT_ADDRESS, bus=None,
+    def __init__(self, address, bus=None,
                  sensor_range=RANGE_4G, data_rate=BW_RATE_800HZ, debug=False):
         self.i2c_address = address
         if bus is None:
@@ -394,41 +403,54 @@ class MMA8451(object):
                 	cur.execute('INSERT INTO archive (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
                 	t = t+1
         	con.commit()
-	if norm == 1 and last == 0:
-        	print '=== norm data collection finished, start data saving'
-        	t = 0
-        	while t < size:
-                	cur.execute('INSERT INTO norm     (count, id, x, y, z, orientation ) VALUES( ?, ?, ?, ?, ?, ?)',( t, args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
-                	t = t+1
-        	con.commit()
-	if  norm == 1 and last == 1:
-        	print '=== data normalization '
-         	cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation, norm) SELECT datetime(\'now\'), id, avg(x), avg(y), avg(z), min(orientation), 1 FROM norm GROUP BY count')
-         	cur.execute('DELETE FROM norm')
-         	con.commit()
+#	if norm == 1 and last == 0:
+#        	print '=== norm data collection finished, start data saving'
+#        	t = 0
+#        	while t < size:
+#                	cur.execute('INSERT INTO norm     (count, id, x, y, z, orientation ) VALUES( ?, ?, ?, ?, ?, ?)',( t, args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
+#                	t = t+1
+#        	con.commit()
+#	if  norm == 1 and last == 1:
+#        	print '=== data normalization '
+#         	cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation, norm) SELECT datetime(\'now\'), id, avg(x), avg(y), avg(z), min(orientation), 1 FROM norm GROUP BY count')
+#         	cur.execute('DELETE FROM norm')
+#         	con.commit()
 
 	return ()
 
 if __name__ == "__main__":
-    mma8451 = MMA8451()
 #========================
 # run with normalization 
 #========================
-    if  norm == 1:
-	     while norm_count > 0:
-             		scheduler.enter(norm_time*norm_count, 1, mma8451.get_data_bin, (2400,1,0))
-        		norm_count = norm_count - 1
-	     scheduler.run()
-	     mma8451.get_data_bin(2400,1,1) # calc normalized value
+#    if  norm == 1:
+#	     while norm_count > 0:
+#             		scheduler.enter(norm_time*norm_count, 1, mma8451.get_data_bin, (2400,1,0))
+#        		norm_count = norm_count - 1
+#	     scheduler.run()
+#	     mma8451.get_data_bin(2400,1,1) # calc normalized value
 	
 #==========================
 # run witout normalisation 
 #==========================
-    if  norm == 0:
+    if  seq == 0:
+	    mma8451 = MMA8451(DEFAULT_ADDRESS)
 	    mma8451.get_data_bin(2400,0,0)
+	    con.close
+	    print '=== data saving finished, data visualisation starting'
+	    cmd = "./fft.py --sensor "+str(args.sensor)
+    	    os.system(cmd)
 
-
-    con.close
-    print '=== data saving finished, data visualisation starting'
-    cmd = "./fft.py --sensor "+str(args.sensor)+" --norm "+str(norm)
-    os.system(cmd)
+    if  seq == 1:
+	    DEFAULT_ADDRESS = 0x1c #!!!!
+	    mma8451 = MMA8451(DEFAULT_ADDRESS)
+	    mma8451.get_data_bin(2400,0,0)
+	    mma8451 = MMA8451(DEFAULT_ADDRESS)
+	    DEFAULT_ADDRESS = 0x1c
+	    mma8451.get_data_bin(2400,0,0)	    
+	    con.close
+    	    print '=== data saving finished, data visualisation starting for sensor 1'
+            cmd = "./fft.py --sensor 1" 
+            os.system(cmd)
+            print '=== data saving finished, data visualisation starting for sensor 2'
+            cmd = "./fft.py --sensor 2"
+            os.system(cmd)
