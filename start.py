@@ -6,9 +6,9 @@
 # based on mma8451.py - Python API for MMA8451 accelerometer.  Author: jatin kataria
 # maxdukov@gmail.com
 #========================================
-# v. 1.0.210317 =)
+# v. 1.0.280317 =)
 
-print "MMA8451 data collection script v1.0.210317"
+print "MMA8451 data collection script v1.0.280317"
 
 
 import smbus
@@ -32,7 +32,8 @@ parser.add_argument("--seq", type=int, help="select sequential mode. 1 for seque
 args = parser.parse_args()
 if args.sensor is None and (args.seq is None or args.seq == 0):
 	print "Default sensor id 0x1d will be used. Use ./start.py --sensor 2 for select second sensor. Use ./start.py -h for help."
-	DEFAULT_ADDRESS = 0x1d    
+	DEFAULT_ADDRESS = 0x1d
+	args.sensor = 1
 #if (args.norm is None or args.norm == 0):
 #	print "Default mode, no normalization"
 #	norm = 0
@@ -375,7 +376,7 @@ class MMA8451(object):
         z = round((float(z)) / RANGE_DIVIDER[self.sensor_range], 3)
 
         return {"x": x, "y": y, "z": z}
-    def get_data_bin(self,size, norm, last):
+    def get_data_bin(self,size, norm, last, id):
 	dt_list = [0]*size
 	x_list = [0]*size
 	y_list = [0]*size
@@ -384,7 +385,13 @@ class MMA8451(object):
 	t = 0
 	start = datetime.datetime.now()
 	run = datetime.datetime.now()
-	print '=== data collection start. Start time='+str(run)
+	print '=== Sensor settings:'
+	print '==> Range = 4G'
+	print '==> Data rate = 800Hz'
+	print '==> Resolution = High(14-bit)'
+	print '==> Oversampling Mode = On'
+	print '============================='
+	print '=== data collection started. Start time='+str(run)
 	while t < size:
         	if (run + datetime.timedelta(0,0,1230))  <= datetime.datetime.now():
                 	run = datetime.datetime.now()
@@ -434,7 +441,7 @@ if __name__ == "__main__":
 #==========================
     if  seq == 0:
 	    mma8451 = MMA8451(DEFAULT_ADDRESS)
-	    mma8451.get_data_bin(2400,0,0)
+	    mma8451.get_data_bin(2400,0,0,args.sensor)
 	    con.close
 	    print '=== data saving finished, data visualisation starting'
 	    cmd = "./fft.py --sensor "+str(args.sensor)
@@ -443,10 +450,10 @@ if __name__ == "__main__":
     if  seq == 1:
 	    DEFAULT_ADDRESS = 0x1d
 	    mma8451 = MMA8451(DEFAULT_ADDRESS)
-	    mma8451.get_data_bin(2400,0,0)
+	    mma8451.get_data_bin(2400,0,0,1)
 	    mma8451 = MMA8451(DEFAULT_ADDRESS)
 	    DEFAULT_ADDRESS = 0x1c
-	    mma8451.get_data_bin(2400,0,0)	    
+	    mma8451.get_data_bin(2400,0,0,2)	    
 	    con.close
     	    print '=== data saving finished, data visualisation starting for sensor 1'
             cmd = "./fft.py --sensor 1" 
