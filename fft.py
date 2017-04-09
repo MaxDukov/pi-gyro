@@ -5,8 +5,8 @@
 # Created by Max Dukov
 # maxdukov@gmail.com
 #========================================
-# v. 1.0.210317 =)
-print "FFT vis script v1.0.210317"
+# v. 1.0.090417 =)
+print "FFT vis script v1.0.090417"
 import numpy as np
 from numpy import array, arange, abs as np_abs
 import matplotlib
@@ -51,6 +51,7 @@ print "==================================="
 ######## process  X 
 # freq graph
 Yx = np_abs(np.fft.rfft(x_))
+Yx_h = np_abs(np.fft.rfft(x_*np.hanning(len(x_))))
 Yx[0] = 0
 end = len(Yx)
 X = np.asarray(np.linspace(0, 400, end, endpoint=True)) 
@@ -71,8 +72,10 @@ fig.suptitle('FFT and velocity graphs for sensor '+str(args.sensor), fontsize=14
 ### plot freq for X
 plt.subplot(3, 2, 1)
 plt.grid(True)
-plt.plot(X,Yx)
+plt.plot(X,Yx,'b.-',label='Row FFT')
+plt.plot(X,Yx_h,'c.-',label='FFT with Haning')
 plt.xlabel('Freq (Hz)')
+plt.legend(loc=0)
 # Velocity graph
 Vx = [0]*400
 for i in range(0,400):
@@ -88,6 +91,7 @@ plt.xlabel('time (s)')
 ######## process  Y
 # freq graph
 Yy = np_abs(np.fft.rfft(y_))
+Yy_h = np_abs(np.fft.rfft(y_*np.hanning(len(y_))))
 Yy[0] = 0
 end = len(Yy)
 Xy = np.asarray(np.linspace(0, 400, end, endpoint=True))
@@ -100,7 +104,9 @@ print "=============="
 ### plot freq for Y
 plt.subplot(3, 2, 3)
 plt.grid(True)
-plt.plot(Xy,Yy)
+plt.plot(Xy,Yy,'b.-',label='Row FFT')
+plt.plot(Xy,Yy_h,'c.-',label='FFT with Hanning')
+plt.legend(loc=0)
 plt.xlabel('Freq (Hz)')
 # Velocity graph
 Vy = [0]*400
@@ -118,6 +124,7 @@ plt.xlabel('time (s)')
 ######## process  Z
 # freq graph
 Yz = np_abs(np.fft.rfft(z_))
+Yz_h = np_abs(np.fft.rfft(z_*np.hanning(len(z_))))
 Yz[0] = 0
 end = len(Yz)
 Xz = np.asarray(np.linspace(0, 400, end, endpoint=True))
@@ -129,7 +136,9 @@ print "freq=", freq_z
 ### plot freq for Z
 plt.subplot(3, 2, 5)
 plt.grid(True)
-plt.plot(Xz,Yz)
+plt.plot(Xz,Yz,'b.-',label='Row FFT')
+plt.plot(Xz,Yz_h,'c.-',label='FFT with Hanning')
+plt.legend(loc=0)
 plt.xlabel('Freq (Hz)')
 # Velocity graph
 Vz = [0]*400
@@ -148,3 +157,4 @@ timestr = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
 plt.savefig('/var/www/html/fft_all_'+timestr+'_'+(str(args.sensor))+'.png')
 #if norm == 1:
 #	plt.savefig('/var/www/html/fft_all_norm_'+timestr+'_'+(str(args.sensor))+'.png')
+print 'Please have a look on results here: fft_all_'+timestr+'_'+(str(args.sensor))+'.png'

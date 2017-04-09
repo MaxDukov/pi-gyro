@@ -6,9 +6,9 @@
 # based on mma8451.py - Python API for MMA8451 accelerometer.  Author: jatin kataria
 # maxdukov@gmail.com
 #========================================
-# v. 1.0.280317 =)
+# v. 1.0.090417 =)
 
-print "MMA8451 data collection script v1.0.280317"
+print "MMA8451 data collection script v1.0.090417"
 
 
 import smbus
@@ -390,6 +390,7 @@ class MMA8451(object):
 	print '==> Data rate = 800Hz'
 	print '==> Resolution = High(14-bit)'
 	print '==> Oversampling Mode = On'
+	print '==> Sensor#'+str(id)
 	print '============================='
 	print '=== data collection started. Start time='+str(run)
 	while t < size:
@@ -406,8 +407,8 @@ class MMA8451(object):
 	        print '=== data collection finished, start data saving'
         	t = 0
 	        while t < size:
-        	        cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
-                	cur.execute('INSERT INTO archive (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], args.sensor, x_list[t], y_list[t], z_list[t], o_list[t]))
+        	        cur.execute('INSERT INTO log     (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], id, x_list[t], y_list[t], z_list[t], o_list[t]))
+                	cur.execute('INSERT INTO archive (dt, id, x, y, z, orientation ) VALUES(?, ?, ?, ?, ?, ?)',(dt_list[t], id, x_list[t], y_list[t], z_list[t], o_list[t]))
                 	t = t+1
         	con.commit()
 #	if norm == 1 and last == 0:
@@ -448,7 +449,7 @@ if __name__ == "__main__":
     	    os.system(cmd)
 
     if  seq == 1:
-	    DEFAULT_ADDRESS = 0x1d
+	    DEFAULT_ADDRESS = 0x1c
 	    mma8451 = MMA8451(DEFAULT_ADDRESS)
 	    mma8451.get_data_bin(2400,0,0,1)
 	    mma8451 = MMA8451(DEFAULT_ADDRESS)
