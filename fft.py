@@ -15,6 +15,17 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import sqlite3
 import argparse
+import socket
+import fcntl
+import struct
+
+def get_ip_address(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+        s.fileno(),
+        0x8915,  # SIOCGIFADDR
+        struct.pack('256s', ifname[:15])
+    )[20:24])
 
 #==============================
 # setup arguments parsing here
@@ -157,4 +168,4 @@ timestr = datetime.strftime(datetime.now(), '%Y-%m-%d_%H:%M:%S')
 plt.savefig('/var/www/html/fft_all_'+timestr+'_'+(str(args.sensor))+'.png')
 #if norm == 1:
 #	plt.savefig('/var/www/html/fft_all_norm_'+timestr+'_'+(str(args.sensor))+'.png')
-print 'Please have a look on results here: fft_all_'+timestr+'_'+(str(args.sensor))+'.png'
+print 'Please have a look on results here: http://'+(str(get_ip_address('eth0')))+'/fft_all_'+timestr+'_'+(str(args.sensor))+'.png'
